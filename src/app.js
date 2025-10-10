@@ -7,8 +7,10 @@ import accountRoutes from "./routes/account.routes.js";
 import destinationRoutes from "./routes/destination.routes.js";
 import dataHandlerRoutes from "./routes/dataHandler.routes.js";
 import logRoutes from "./routes/log.routes.js";
-import { swaggerSpec, swaggerUiSetup } from "./config/swagger.js";
 import swaggerUi from "swagger-ui-express";
+import fs from "fs";
+const swaggerDocument = JSON.parse(fs.readFileSync("./src/config/swagger.json", "utf-8"));
+
 
 dotenv.config();
 const app = express();
@@ -29,6 +31,6 @@ app.use("/api/accounts", accountRoutes);
 app.use("/api/destinations", destinationRoutes);
 app.use("/server", dataHandlerRoutes);
 app.use("/api/logs", logRoutes);
-app.use("/api-docs", swaggerUi.serve, swaggerUiSetup.setup(swaggerSpec));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 export default app;
