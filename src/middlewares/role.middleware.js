@@ -2,6 +2,7 @@ import AccountMember from "../models/accountMember.model.js";
 import Role from "../models/role.model.js";
 
 export const authorizeRole = (roles) => {
+  console.log(roles)
   return async (req, res, next) => {
     try {
       const membership = await AccountMember.findOne({ user_id: req.user._id }).populate("role_id");
