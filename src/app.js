@@ -12,9 +12,9 @@ import fs from "fs";
 const swaggerDocument = JSON.parse(fs.readFileSync("./src/config/swagger.json", "utf-8"));
 
 
-dotenv.config();
 const app = express();
 
+dotenv.config();
 app.use(cors());
 app.use(express.json());
 
