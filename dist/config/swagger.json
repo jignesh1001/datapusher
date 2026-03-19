@@ -1,0 +1,274 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Data Pusher API",
+    "version": "1.0.0",
+    "description": "API documentation for the Data Pusher backend service built with Node.js and Express."
+  },
+  "servers": [
+    { "url": "http://localhost:5000", "description": "Local Development Server" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
+  "tags": [
+    { "name": "Auth", "description": "Authentication endpoints" },
+    { "name": "Accounts", "description": "Account management" },
+    { "name": "Destinations", "description": "Webhook destination management" },
+    { "name": "Logs", "description": "Logs tracking and monitoring" },
+    { "name": "Data Handler", "description": "Data receiver and queue handler" }
+  ],
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Register a new user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "example": "user@example.com" },
+                  "password": { "type": "string", "example": "securepassword123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Registration successful" },
+          "400": { "description": "User already exists or missing fields" }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login existing user and get JWT token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "example": "user@example.com" },
+                  "password": { "type": "string", "example": "securepassword123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Login successful, returns JWT token" },
+          "401": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/api/accounts": {
+      "post": {
+        "tags": ["Accounts"],
+        "summary": "Create a new account (Admin only)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["account_name"],
+                "properties": {
+                  "account_name": { "type": "string", "example": "Zeel Infotech Pvt. Ltd." },
+                  "website": { "type": "string", "example": "https://zeel.com" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Account created successfully" },
+          "403": { "description": "Forbidden (insufficient rights)" }
+        }
+      },
+      "get": {
+        "tags": ["Accounts"],
+        "summary": "Get all accounts of logged-in user",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List of accounts" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/api/accounts/{id}": {
+      "put": {
+        "tags": ["Accounts"],
+        "summary": "Update account by ID (Admin only)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": { "type": "string" },
+            "required": true,
+            "description": "Account ID"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "account_name": { "type": "string" },
+                  "website": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Account updated" },
+          "403": { "description": "Forbidden" }
+        }
+      },
+      "delete": {
+        "tags": ["Accounts"],
+        "summary": "Delete account (Admin only)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": { "type": "string" },
+            "required": true,
+            "description": "Account ID"
+          }
+        ],
+        "responses": {
+          "200": { "description": "Account deleted" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/api/destinations": {
+      "post": {
+        "tags": ["Destinations"],
+        "summary": "Create a new destination (Admin only)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["account_id", "url", "http_method", "headers"],
+                "properties": {
+                  "account_id": { "type": "string" },
+                  "url": { "type": "string", "example": "https://webhook.site/abc123" },
+                  "http_method": { "type": "string", "example": "POST" },
+                  "headers": {
+                    "type": "object",
+                    "example": { "Content-Type": "application/json", "APP_ID": "test-app-id" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Destination created" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/api/destinations/{accountId}": {
+      "get": {
+        "tags": ["Destinations"],
+        "summary": "Get all destinations for a specific account",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "accountId",
+            "schema": { "type": "string" },
+            "required": true,
+            "description": "Account ID"
+          }
+        ],
+        "responses": {
+          "200": { "description": "List of destinations" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/api/logs": {
+      "get": {
+        "tags": ["Logs"],
+        "summary": "Get logs with optional filters",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "in": "query", "name": "account_id", "schema": { "type": "string" }, "required": false },
+          { "in": "query", "name": "status", "schema": { "type": "string" }, "required": false },
+          { "in": "query", "name": "start", "schema": { "type": "string", "format": "date" }, "required": false },
+          { "in": "query", "name": "end", "schema": { "type": "string", "format": "date" }, "required": false }
+        ],
+        "responses": {
+          "200": { "description": "Logs retrieved successfully" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/server/incoming_data": {
+      "post": {
+        "tags": ["Data Handler"],
+        "summary": "Receive and queue incoming data for forwarding",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "CL-X-TOKEN",
+            "schema": { "type": "string" },
+            "required": true,
+            "description": "App secret token for authentication"
+          },
+          {
+            "in": "header",
+            "name": "CL-X-EVENT-ID",
+            "schema": { "type": "string" },
+            "required": true,
+            "description": "Unique event ID for tracking"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": { "key": "value", "another": "data" }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Data received successfully" },
+          "400": { "description": "Missing headers" },
+          "401": { "description": "Invalid app token" },
+          "404": { "description": "No destinations found" },
+          "429": { "description": "Rate limit exceeded" }
+        }
+      }
+    }
+  }
+}
