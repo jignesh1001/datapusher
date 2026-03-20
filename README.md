@@ -61,7 +61,7 @@ Data Pusher enables systems to send event-driven data to multiple third-party en
 ## 🏗️ System Design (High Level)
 
 ```
-Client → API Endpoint → Authentication → Queue सिस्टम → Worker → Webhook Destinations
+Client → API Endpoint → Authentication → Queue → Worker → Webhook Destinations
                                 ↓
                               Logs
 ```
