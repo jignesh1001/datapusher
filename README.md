@@ -195,7 +195,7 @@ The project supports:
 
 API documentation is available via:
 
-* Swagger / Postman collection (if configured)
+* Swagger 
 
 ---
 
