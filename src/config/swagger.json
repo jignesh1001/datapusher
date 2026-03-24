@@ -3,33 +3,153 @@
   "info": {
     "title": "Data Pusher API",
     "version": "1.0.0",
-    "description": "API documentation for the Data Pusher backend service built with Node.js and Express."
+    "description": "A backend service for receiving data via webhook and forwarding it to multiple destinations. Built with Node.js, Express, MongoDB, Redis, and BullMQ for reliable message processing.",
+    "contact": {
+      "name": "API Support",
+      "email": "support@datapusher.io"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
   },
   "servers": [
-    { "url": "http://localhost:5000", "description": "Local Development Server" }
+    { "url": "http://localhost:5000", "description": "Local Development Server" },
+    { "url": "https://api.datapusher.io", "description": "Production Server" }
   ],
   "components": {
     "securitySchemes": {
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT"
+        "bearerFormat": "JWT",
+        "description": "JWT token obtained from /api/auth/login or /api/auth/register"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string", "example": "507f1f77bcf86cd799439011" },
+          "email": { "type": "string", "format": "email", "example": "user@example.com" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string", "example": "507f1f77bcf86cd799439012" },
+          "account_name": { "type": "string", "example": "Zeel Infotech Pvt. Ltd." },
+          "app_secret_token": { "type": "string", "example": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6", "description": "Auto-generated token for webhook authentication" },
+          "website": { "type": "string", "example": "https://zeel.com" },
+          "created_by": { "type": "string", "description": "User ID who created the account" },
+          "updated_by": { "type": "string", "description": "User ID who last updated the account" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Destination": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string", "example": "507f1f77bcf86cd799439013" },
+          "account_id": { "type": "string", "example": "507f1f77bcf86cd799439012" },
+          "url": { "type": "string", "format": "uri", "example": "https://webhook.site/abc123" },
+          "http_method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"], "example": "POST" },
+          "headers": { "type": "object", "example": { "Content-Type": "application/json", "APP_ID": "test-app-id" } },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Log": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "account_id": { "type": "string" },
+          "event_id": { "type": "string", "description": "Unique event identifier from CL-X-EVENT-ID header" },
+          "destination_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["success", "failed"] },
+          "received_data": { "type": "object" },
+          "response_data": { "type": "object" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": { "type": "string" },
+          "data": { "type": "object" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "message": { "type": "string", "example": "Error description" }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "token": { "type": "string", "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." },
+          "message": { "type": "string", "example": "Login successful" }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "message": { "type": "string", "example": "All fields required" }
+        }
+      }
+    },
+    "responses": {
+      "UnauthorizedError": {
+        "description": "Authentication token is missing or invalid",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": { "success": false, "message": "Not authorized" }
+          }
+        }
+      },
+      "ForbiddenError": {
+        "description": "User does not have permission to access this resource",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": { "success": false, "message": "Insufficient permissions" }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "Internal server error",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": { "success": false, "message": "Internal server error" }
+          }
+        }
       }
     }
   },
   "security": [{ "bearerAuth": [] }],
   "tags": [
-    { "name": "Auth", "description": "Authentication endpoints" },
-    { "name": "Accounts", "description": "Account management" },
-    { "name": "Destinations", "description": "Webhook destination management" },
-    { "name": "Logs", "description": "Logs tracking and monitoring" },
-    { "name": "Data Handler", "description": "Data receiver and queue handler" }
+    { "name": "Auth", "description": "User authentication and registration. No token required for these endpoints." },
+    { "name": "Accounts", "description": "Multi-tenant account management. Create accounts to organize webhook destinations." },
+    { "name": "Destinations", "description": "Webhook destination management. Define where incoming data should be forwarded." },
+    { "name": "Logs", "description": "Track data processing status and view event history." },
+    { "name": "Data Handler", "description": "Public endpoint for receiving incoming webhook data. Authentication via CL-X-TOKEN header." }
   ],
   "paths": {
     "/api/auth/register": {
       "post": {
         "tags": ["Auth"],
         "summary": "Register a new user",
+        "description": "Create a new user account. Returns a JWT token on successful registration.",
+        "security": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -38,23 +158,46 @@
                 "type": "object",
                 "required": ["email", "password"],
                 "properties": {
-                  "email": { "type": "string", "example": "user@example.com" },
-                  "password": { "type": "string", "example": "securepassword123" }
+                  "email": { "type": "string", "format": "email", "description": "User's email address" },
+                  "password": { "type": "string", "minLength": 6, "description": "User's password (min 6 characters)" }
                 }
-              }
+              },
+              "example": { "email": "user@example.com", "password": "securepassword123" }
             }
           }
         },
         "responses": {
-          "201": { "description": "Registration successful" },
-          "400": { "description": "User already exists or missing fields" }
+          "201": {
+            "description": "Registration successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponse" },
+                "example": { "success": true, "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", "message": "Registration successful" }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error - missing fields or user already exists",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationError" },
+                "examples": {
+                  "missing_fields": { "value": { "success": false, "message": "All fields required" } },
+                  "user_exists": { "value": { "success": false, "message": "User already exists" } }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
         }
       }
     },
     "/api/auth/login": {
       "post": {
         "tags": ["Auth"],
-        "summary": "Login existing user and get JWT token",
+        "summary": "Login existing user",
+        "description": "Authenticate user and receive a JWT token for API access.",
+        "security": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -63,23 +206,42 @@
                 "type": "object",
                 "required": ["email", "password"],
                 "properties": {
-                  "email": { "type": "string", "example": "user@example.com" },
-                  "password": { "type": "string", "example": "securepassword123" }
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string" }
                 }
-              }
+              },
+              "example": { "email": "user@example.com", "password": "securepassword123" }
             }
           }
         },
         "responses": {
-          "200": { "description": "Login successful, returns JWT token" },
-          "401": { "description": "Invalid credentials" }
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponse" },
+                "example": { "success": true, "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", "message": "Login successful" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "success": false, "message": "Invalid credentials" }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
         }
       }
     },
     "/api/accounts": {
       "post": {
         "tags": ["Accounts"],
-        "summary": "Create a new account (Admin only)",
+        "summary": "Create a new account",
+        "description": "Create a new account. The authenticated user becomes the account admin. An `app_secret_token` is auto-generated for webhook authentication.",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
@@ -89,32 +251,85 @@
                 "type": "object",
                 "required": ["account_name"],
                 "properties": {
-                  "account_name": { "type": "string", "example": "Zeel Infotech Pvt. Ltd." },
-                  "website": { "type": "string", "example": "https://zeel.com" }
+                  "account_name": { "type": "string", "description": "Display name for the account" },
+                  "website": { "type": "string", "format": "uri", "description": "Optional website URL" }
                 }
-              }
+              },
+              "example": { "account_name": "Zeel Infotech Pvt. Ltd.", "website": "https://zeel.com" }
             }
           }
         },
         "responses": {
-          "201": { "description": "Account created successfully" },
-          "403": { "description": "Forbidden (insufficient rights)" }
+          "201": {
+            "description": "Account created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Account" }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "_id": "507f1f77bcf86cd799439012",
+                    "account_name": "Zeel Infotech Pvt. Ltd.",
+                    "app_secret_token": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+                    "website": "https://zeel.com",
+                    "created_at": "2026-03-24T10:30:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Account name required",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "success": false, "message": "Account name required" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "500": { "$ref": "#/components/responses/ServerError" }
         }
       },
       "get": {
         "tags": ["Accounts"],
-        "summary": "Get all accounts of logged-in user",
+        "summary": "Get all accounts for logged-in user",
+        "description": "Retrieve all accounts where the authenticated user is a member.",
         "security": [{ "bearerAuth": [] }],
         "responses": {
-          "200": { "description": "List of accounts" },
-          "401": { "description": "Unauthorized" }
+          "200": {
+            "description": "List of accounts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Account" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "500": { "$ref": "#/components/responses/ServerError" }
         }
       }
     },
     "/api/accounts/{id}": {
       "put": {
         "tags": ["Accounts"],
-        "summary": "Update account by ID (Admin only)",
+        "summary": "Update an account",
+        "description": "Update account details. Only users with Admin role can perform this action.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -132,20 +347,37 @@
                 "type": "object",
                 "properties": {
                   "account_name": { "type": "string" },
-                  "website": { "type": "string" }
+                  "website": { "type": "string", "format": "uri" }
                 }
-              }
+              },
+              "example": { "account_name": "Updated Company Name", "website": "https://updated.com" }
             }
           }
         },
         "responses": {
-          "200": { "description": "Account updated" },
-          "403": { "description": "Forbidden" }
+          "200": {
+            "description": "Account updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Account" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "500": { "$ref": "#/components/responses/ServerError" }
         }
       },
       "delete": {
         "tags": ["Accounts"],
-        "summary": "Delete account (Admin only)",
+        "summary": "Delete an account",
+        "description": "Permanently delete an account and all associated memberships. Only Admin role can perform this action.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -157,15 +389,26 @@
           }
         ],
         "responses": {
-          "200": { "description": "Account deleted" },
-          "403": { "description": "Forbidden" }
+          "200": {
+            "description": "Account deleted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessResponse" },
+                "example": { "success": true, "message": "Account deleted" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "500": { "$ref": "#/components/responses/ServerError" }
         }
       }
     },
     "/api/destinations": {
       "post": {
         "tags": ["Destinations"],
-        "summary": "Create a new destination (Admin only)",
+        "summary": "Create a new destination",
+        "description": "Create a webhook destination for an account. Incoming data will be forwarded to this URL. Only Admin role can perform this action.",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
@@ -175,28 +418,58 @@
                 "type": "object",
                 "required": ["account_id", "url", "http_method", "headers"],
                 "properties": {
-                  "account_id": { "type": "string" },
-                  "url": { "type": "string", "example": "https://webhook.site/abc123" },
-                  "http_method": { "type": "string", "example": "POST" },
+                  "account_id": { "type": "string", "description": "The account this destination belongs to" },
+                  "url": { "type": "string", "format": "uri", "description": "The webhook URL to forward data to" },
+                  "http_method": {
+                    "type": "string",
+                    "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"],
+                    "description": "HTTP method to use when forwarding data"
+                  },
                   "headers": {
                     "type": "object",
-                    "example": { "Content-Type": "application/json", "APP_ID": "test-app-id" }
+                    "additionalProperties": { "type": "string" },
+                    "description": "Headers to include in the forwarded request"
                   }
+                }
+              },
+              "example": {
+                "account_id": "507f1f77bcf86cd799439012",
+                "url": "https://webhook.site/abc123",
+                "http_method": "POST",
+                "headers": {
+                  "Content-Type": "application/json",
+                  "APP_ID": "test-app-id"
                 }
               }
             }
           }
         },
         "responses": {
-          "201": { "description": "Destination created" },
-          "403": { "description": "Forbidden" }
+          "201": {
+            "description": "Destination created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Destination" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "500": { "$ref": "#/components/responses/ServerError" }
         }
       }
     },
     "/api/destinations/{accountId}": {
       "get": {
         "tags": ["Destinations"],
-        "summary": "Get all destinations for a specific account",
+        "summary": "Get destinations for an account",
+        "description": "Retrieve all webhook destinations configured for a specific account.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -208,8 +481,25 @@
           }
         ],
         "responses": {
-          "200": { "description": "List of destinations" },
-          "401": { "description": "Unauthorized" }
+          "200": {
+            "description": "List of destinations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Destination" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "500": { "$ref": "#/components/responses/ServerError" }
         }
       }
     },
@@ -217,56 +507,152 @@
       "get": {
         "tags": ["Logs"],
         "summary": "Get logs with optional filters",
+        "description": "Retrieve processing logs for data events. Filter by account, status, or date range.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
-          { "in": "query", "name": "account_id", "schema": { "type": "string" }, "required": false },
-          { "in": "query", "name": "status", "schema": { "type": "string" }, "required": false },
-          { "in": "query", "name": "start", "schema": { "type": "string", "format": "date" }, "required": false },
-          { "in": "query", "name": "end", "schema": { "type": "string", "format": "date" }, "required": false }
+          {
+            "in": "query",
+            "name": "account_id",
+            "schema": { "type": "string" },
+            "description": "Filter logs by account ID"
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": { "type": "string", "enum": ["success", "failed"] },
+            "description": "Filter by processing status"
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Start date for date range filter (ISO 8601 format)"
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "End date for date range filter (ISO 8601 format)"
+          }
         ],
         "responses": {
-          "200": { "description": "Logs retrieved successfully" },
-          "401": { "description": "Unauthorized" }
+          "200": {
+            "description": "Logs retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Log" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "500": { "$ref": "#/components/responses/ServerError" }
         }
       }
     },
     "/server/incoming_data": {
       "post": {
         "tags": ["Data Handler"],
-        "summary": "Receive and queue incoming data for forwarding",
+        "summary": "Receive incoming webhook data",
+        "description": "Public endpoint for receiving data from external sources. Data is validated against the account's `app_secret_token`, then queued for delivery to all configured destinations.",
+        "security": [],
         "parameters": [
           {
             "in": "header",
             "name": "CL-X-TOKEN",
             "schema": { "type": "string" },
             "required": true,
-            "description": "App secret token for authentication"
+            "description": "Account's app_secret_token for authentication"
           },
           {
             "in": "header",
             "name": "CL-X-EVENT-ID",
             "schema": { "type": "string" },
             "required": true,
-            "description": "Unique event ID for tracking"
+            "description": "Unique identifier for this event, used for tracking and deduplication"
           }
         ],
         "requestBody": {
           "required": true,
+          "description": "Any JSON payload to be forwarded to destinations",
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "example": { "key": "value", "another": "data" }
+                "description": "Any JSON object - will be forwarded to all destinations"
+              },
+              "example": {
+                "event": "user.created",
+                "data": {
+                  "id": 12345,
+                  "name": "John Doe",
+                  "email": "john@example.com"
+                },
+                "timestamp": "2026-03-24T10:30:00Z"
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "Data received successfully" },
-          "400": { "description": "Missing headers" },
-          "401": { "description": "Invalid app token" },
-          "404": { "description": "No destinations found" },
-          "429": { "description": "Rate limit exceeded" }
+          "200": {
+            "description": "Data received and queued successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Data received successfully" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required headers",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "success": false, "message": "Missing CL-X-TOKEN header" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid app token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "success": false, "message": "Invalid token" }
+              }
+            }
+          },
+          "404": {
+            "description": "No destinations configured for this account",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "success": false, "message": "No destinations found" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "success": false, "message": "Too many requests, please try again later" }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
         }
       }
     }
