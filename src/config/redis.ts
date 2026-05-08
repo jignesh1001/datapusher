@@ -1,9 +1,8 @@
 import { createClient, RedisClientType } from "redis";
 
 const client: RedisClientType = createClient({
+  url:process.env.REDIS_URL,
   socket: {
-    host: process.env.REDIS_HOST ?? "localhost",
-    port: Number(process.env.REDIS_PORT ?? 6379),
     reconnectStrategy: (retries: number): number | Error => {
       if (retries > 5) {
         console.error("Redis max reconnection attempts reached");
