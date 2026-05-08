@@ -1,6 +1,6 @@
 import { createClient, RedisClientType } from "redis";
 
-const client: RedisClientType = createClient({
+export const client: RedisClientType = createClient({
   url:process.env.REDIS_URL,
   socket: {
     reconnectStrategy: (retries: number): number | Error => {
@@ -19,7 +19,7 @@ client.on("ready", () => console.log("Redis client connected and ready ✅"));
 client.on("error", (err: Error) => console.error("Redis connection error ❌", err));
 client.on("end", () => console.log("Redis connection closed"));
 
-const connectRedis = async (): Promise<RedisClientType> => {
+export const connectRedis = async (): Promise<RedisClientType> => {
   try {
     await client.connect();
     const pong = await client.ping();
@@ -32,6 +32,5 @@ const connectRedis = async (): Promise<RedisClientType> => {
   }
 };
 
-await connectRedis();
 
-export default client;
+
