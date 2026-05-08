@@ -42,7 +42,7 @@ app.use("/api/accounts", accountRoutes);
 app.use("/api/destinations", destinationRoutes);
 app.use("/server", dataHandlerRoutes);
 app.use("/api/logs", logRoutes);
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use("/", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // ── Global error handler ───────────────────────────────────────────────────────
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
