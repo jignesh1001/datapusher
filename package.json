@@ -4,11 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node --esm src/app.ts",
+    "dev": "ts-node --esm src/server.ts",
     "build": "tsc && copyfiles -u 1 src/config/swagger.json dist",
-    "start": "node dist/app.js",
+    "start": "node dist/server.js",
     "lint": "eslint src --ext .ts",
-    "start:prod": "node dist/app.js"
+    "start:prod": "node dist/server.js"
   },
   "keywords": [],
   "author": "",
